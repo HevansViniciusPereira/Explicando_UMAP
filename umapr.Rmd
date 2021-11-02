@@ -1,0 +1,227 @@
+---
+title: "UMAP"
+output:
+  html_document:
+    df_print: paged
+---
+
+# Biblioteca `UMAP`
+
+Vamos usar o conjunto de dados `Iris` para exemplificar o uso do algoritmo `UMAP`.
+
+```{r}
+head(iris, 3)
+```
+
+Separando os dados em variáveis de treino e variável alvo.
+
+```{r}
+iris.data = iris[, grep("Sepal|Petal", colnames(iris))]
+iris.labels = iris[, "Species"]
+```
+
+Importando a biblioteca e aplicando `UMAP` no conjunto `Iris`.
+
+```{r}
+library(umap)
+iris.umap = umap(iris.data)
+```
+
+
+Visualizando o objeto obtido.
+
+```{r}
+iris.umap
+```
+
+Visualizando o conjunto de dados no espaço de dimensão menor.
+
+```{r}
+head(iris.umap$layout, 3)
+```
+
+Plotando o gráfico:
+
+
+```{r}
+plot(iris.umap$layout[,1], iris.umap$layout[,2],
+     col=iris.labels,
+     pch=20)
+```
+
+
+# Biblioteca `uwot`.
+
+
+```{r, time_it = TRUE}
+library(uwot)
+
+# vendo detalhes da implementação do algoritmo
+#?umap
+
+
+# Non-numeric columns are ignored, so in a lot of cases you can pass a data
+# frame directly to umap
+iris_umap <- umap(iris, n_neighbors = 50, learning_rate = 0.5, init = "random")
+
+```
+
+Plotando gráfico.
+
+```{r}
+plot(iris_umap[, 1], iris_umap[, 2],
+     col=iris.labels,
+     pch=20)
+```
+
+Carregando algumas bibliotecas que serão usadas a seguir.
+
+```{r}
+# Carregando o conjunto MNIST
+library(readr)
+library(dplyr)
+```
+
+Carregando o conjunto de dados `MNIST`.
+
+```{r}
+mnist <- read_csv("https://pjreddie.com/media/files/mnist_train.csv", col_names = FALSE)
+
+```
+
+
+Usar uma pré redução de dimensionalidade para conjuntos de dados com muitas variáveis não é necessário mas pode acelerar o tempo do algoritmo. Para isso pode-se usar `PCA` primeiramente para selecionar 50 variáveis e então aplicar
+`UMAP` isto pode ser feito diretamente com o comando a seguir:
+
+
+```{r, time_it = TRUE}
+mnist_umap <- umap(mnist, pca = 50)
+```
+
+
+Plotando o gráfico.
+
+
+```{r}
+mnist_umap <- cbind(mnist_umap, mnist[, 1])
+
+plot(mnist_umap[, 1], mnist_umap[, 2],
+     col = mnist_umap[,3],
+     pch=20)
+```
+
+
+Podemos obter uma descrição da criação do algoritmo usanto `verbose = TRUE`.
+
+
+```{r}
+mnist_umap <- umap(mnist, 
+                   n_neighbors=15,
+                   min_dist=0.001,
+                   verbose=TRUE)
+```
+
+Instanciando um objeto `UMAP` com métrica diferente.
+
+```{r, time_it = TRUE}
+# Usando uma métrica diferente
+mnist_umap_cosine <- umap(mnist,
+                          n_neighbors = 15,
+                          metric = "cosine",
+                          min_dist = 0.001,
+                          verbose = TRUE)
+```
+
+
+Plotando gráfico.
+
+
+```{r}
+mnist_umap_cosine <- cbind(mnist_umap_cosine, mnist[, 1])
+plot(mnist_umap_cosine[, 1], mnist_umap_cosine[, 2], col=mnist_umap_cosine[, 3])
+```
+
+
+Se o interesse for apenas em visualização pode-se usar `fast_sgd = TRUE` para obter uma otimização mais rápida ao usar `Stochastic Gradient Descent`.
+
+
+```{r, time_it = TRUE}
+mnist_umap_fast_sgd <- umap(mnist,
+                            n_neighbors = 15,
+                            metric = "cosine",
+                            min_dist = 0.001,
+                            verbose = TRUE,
+                            fast_sgd = TRUE)
+```
+
+
+Plotando gráfico.
+
+
+```{r}
+mnist_umap_fast_sgd <- cbind(mnist_umap_fast_sgd, mnist[, 1])
+
+plot(mnist_umap_fast_sgd[, 1], mnist_umap_fast_sgd[, 2],
+     col=mnist_umap_fast_sgd[, 3])
+```
+
+
+Pode-se fazer redução de dimensão supervisionada.
+
+
+```{r, time_it = TRUE}
+mnist_umap_s <- umap(mnist,
+                     n_neighbors = 15,
+                     min_dist = 0.001,
+                     verbose = TRUE,
+                     y = mnist$Label,
+                     target_weight = 0.5)
+```
+
+
+Plotando gráfico.
+
+```{r}
+mnist_umap_s <- cbind(mnist_umap_s, mnist[, 1])
+
+plot(mnist_umap_s[, 1], mnist_umap_s[, 2],
+     col=mnist_umap_s[, 3],
+     pch=20)
+```
+
+
+Adicionando novos pontos a um espaço projetado. Vamos dividir os dados em treino e teste.
+
+
+```{r}
+mnist_train <- mnist[1:60000, ]
+mnist_test <- mnist[60001:70000, ]
+```
+
+
+Devemos usar `ret_model = TRUE` para retornar dado extra contendo as coordenadas do treino  no objeto `mnist_train_umap$embedding`
+
+
+Treina-se o modelo com `mnist_train_umap <- umap(mnist_train, ret_model = TRUE)` e depois usa-se `mnist_test_umap <- umap_transform(mnist_test, mnist_train_umap$embedding)` para os dados de teste.
+
+
+Outra coisa possível é salvar os dados dos vizinhos mais próximos para acelerar novos treinos do algoritmo. Para isto deve-se usar `ret_nn = TRUE` e as coordenadas ficam salvas no objeto `mnist_nn$nn`.
+
+
+```{r, time_it = TRUE}
+mnist_nn <- umap(mnist, ret_nn = TRUE)
+```
+
+
+Vamos usar as coordenadas dos vizinhos mais próximos para retreinar o algoritmo com o comando a seguir:
+
+
+```{r, time_it = TRUE}
+mnist_nn_spca <- umap(mnist, nn_method = mnist_nn$nn, init = "spca")
+```
+
+
+Pode-se usar `ret_nn = TRUE` and `ret_model = TRUE` ao mesmo tempo com o comando `umap(mnist, ret_extra = c("model", "nn"))`.
+
+
+Também pode-se usar o parâmetro `fgraph` para criar o grafo usando matriz esparça com o comando `umap(mnist, ret_extra = c("fgraph"))`.
